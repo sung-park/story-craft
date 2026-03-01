@@ -1,137 +1,49 @@
-'use client';
+# PRD: 실시간 인터랙티브 동화책 (MVP 프로토타입)
 
-import React, { useState, useRef, useEffect } from 'react';
+## 1. 프로젝트 / 플레이그라운드 개요
+* **프로젝트명:** (가칭) StoryCraft / Turn-Tale
+* **목적:** 사용자와 AI가 한 줄씩 번갈아 가며 이야기를 만들고, 대화의 맥락이 실시간으로 시각화되는 '턴제 스토리텔링' 웹 서비스 검증.
+* **타겟 사용자:** 마인크래프트와 같이 자유도가 높은 환경에서 역할극과 이야기 만들기를 즐기는 아동.
+* **핵심 가치:** 일방적인 질문-대답 구조를 벗어나, 아이의 상상력이 즉각적으로 눈앞에 구현되는 양방향 몰입 경험 제공.
 
-export default function StoryCraftPlayground() {
-  const [messages, setMessages] = useState([
-    { role: 'ai', text: '안녕, 시온아! 오늘은 어떤 이야기를 만들어볼까?' }
-  ]);
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [imageUrl, setImageUrl] = useState(''); // 초기 빈 캔버스
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+## 2. 목표 및 성공 지표 (MVP)
+* **목표:** '텍스트 입력 -> 맥락에 맞는 이미지 업데이트'의 실시간 사이클이 끊김 없이 매끄럽게 작동하는지 기술적 타당성 검증.
+* **성공 지표 (KPI):**
+  * 대화 입력 후 이미지가 렌더링 되기까지의 지연 시간 (목표: 2~3초 이내)
+  * 이전 대화의 맥락(캐릭터 상태, 배경 등)이 다음 이미지에 유지되는 비율 (컨텍스트 유지력)
 
-  // 자동 스크롤
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+## 3. 사용자 경험 흐름 (User Flow)
+1. **초기 설정:** 빈 캔버스와 대화창이 나타난다. (또는 '숲 속', '우주' 등 기본 배경 선택)
+2. **사용자 턴:** 사용자가 이야기를 한 줄 입력한다. (예: "돼지가 나타났어요.")
+3. **실시간 시각화:** 입력된 텍스트를 바탕으로 메인 캔버스에 돼지가 즉시 나타난다.
+4. **AI 턴 & 시각화:** AI가 이야기에 살을 붙여 한 줄 응답한다. (예: "그런데 그 돼지는 배가 무척 고파 보였어요.") 화면의 돼지가 배고픈 표정으로 업데이트된다.
+5. **디테일 추가 (점진적 렌더링):** 사용자가 "돼지는 낡은 넝마를 입고 있었어요"라고 입력하면, 기존 돼지 이미지 위에 넝마가 자연스럽게 추가된다.
+6. **씬 전환 (Scene Transition):** "돼지는 마법의 문으로 들어갔어요"처럼 배경이 아예 바뀌는 내용이 나오면, 화면이 줌아웃 또는 페이드아웃 되며 새로운 페이지(배경)로 전환된다.
+7. **종료 및 저장:** 이야기가 끝나면 전체 대화와 생성된 삽화들을 엮어 하나의 웹 페이지 형태 동화책으로 갤러리에 저장한다.
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+## 4. 핵심 기능 명세
+### 4.1. 듀얼 뷰 UI (Dual View UI)
+* **상단/좌측 영역:** 실시간으로 생성/업데이트되는 삽화가 꽉 차게 보여지는 이미지 뷰어.
+* **하단/우측 영역:** 메신저 형태의 턴제 대화창. 음성 입력(STT) 버튼 포함.
 
-    // 1. 사용자 메시지 추가
-    const newMessages = [...messages, { role: 'user', text: input }];
-    setMessages(newMessages);
-    setInput('');
-    setIsTyping(true);
+### 4.2. 컨텍스트 분석 엔진 (Context Parser)
+* 대화가 입력될 때마다 **Gemini 1.5 Flash**가 백그라운드에서 실행됨.
+* 현재 문장이 '기존 이미지에 요소를 추가하는 것(Inpainting)'인지, '완전히 새로운 배경을 그리는 것(Text-to-Image)'인지 판단하여 이미지 생성용 프롬프트를 JSON 형태로 백엔드에 전달.
 
-    // 2. AI 응답 및 이미지 업데이트 (API 연동 전 가짜 지연 효과)
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'ai', text: '그때, 꿀꿀거리는 소리와 함께 무언가 나타났어요.' }
-      ]);
-      // 이미지 API 호출 결과라고 가정 (플레이스홀더 이미지)
-      setImageUrl('https://via.placeholder.com/800x800/e2e8f0/64748b?text=Image+Generated'); 
-      setIsTyping(false);
-    }, 1500);
-  };
+### 4.3. 스마트 씬 전환
+* Gemini가 `scene_change: true`로 판단할 경우, 프론트엔드에서 CSS 애니메이션(줌아웃, 플립 등)을 트리거하여 페이지가 넘어가는 듯한 시각적 효과 연출.
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-      handleSend();
-    }
-  };
+## 5. 기술 스택 및 아키텍처 제안
+* **프론트엔드:** Next.js (React), Tailwind CSS, Framer Motion (씬 전환 애니메이션 용)
+* **백엔드/API:** Node.js 기반 환경, WebSocket (실시간 통신을 통한 지연 시간 최소화)
+* **텍스트 AI:** Google Gemini 1.5 Flash API (빠른 응답 속도, 넓은 컨텍스트 윈도우 활용)
+* **이미지 AI:** SDXL Turbo API 또는 안정적인 오픈소스 Inpainting 모델 (Replicate 등의 클라우드 API 활용을 통해 속도 확보)
+* **데이터베이스:** MVP 단계에서는 브라우저 LocalStorage 사용, 추후 Firebase 연동.
 
-  return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-50 text-gray-800 font-sans">
-      
-      {/* 1. 이미지 뷰어 영역 (좌측/상단) */}
-      <div className="flex-1 p-6 md:p-10 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-gray-200 bg-white shadow-sm z-10">
-        <div className="w-full flex justify-between items-center mb-6 max-w-2xl">
-          <h1 className="text-2xl font-bold text-gray-700">플레이그라운드</h1>
-          <button className="text-sm px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full transition">
-            동화책 저장하기
-          </button>
-        </div>
-
-        <div className="w-full max-w-2xl aspect-square bg-gray-100 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center relative transition-all duration-500 ease-in-out">
-          {imageUrl ? (
-            <img 
-              src={imageUrl} 
-              alt="동화책 삽화" 
-              className="object-cover w-full h-full animate-fade-in"
-            />
-          ) : (
-            <div className="text-gray-400 flex flex-col items-center">
-              <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <p>이야기를 시작하면 그림이 그려집니다</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 2. 대화창 영역 (우측/하단) */}
-      <div className="w-full md:w-[400px] lg:w-[480px] h-[50vh] md:h-full flex flex-col bg-white">
-        
-        {/* 대화 목록 */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.map((msg, idx) => (
-            <div 
-              key={idx} 
-              className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
-            >
-              <span className="text-xs text-gray-400 mb-1 px-1">
-                {msg.role === 'user' ? '시온이' : '동화 요정'}
-              </span>
-              <div 
-                className={`max-w-[85%] px-4 py-3 rounded-2xl ${
-                  msg.role === 'user' 
-                    ? 'bg-blue-500 text-white rounded-tr-none' 
-                    : 'bg-gray-100 text-gray-800 rounded-tl-none'
-                }`}
-              >
-                {msg.text}
-              </div>
-            </div>
-          ))}
-          {isTyping && (
-            <div className="flex items-start">
-              <div className="bg-gray-100 text-gray-500 px-4 py-3 rounded-2xl rounded-tl-none animate-pulse">
-                그림을 그리고 있어요...
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* 입력창 */}
-        <div className="p-4 border-t border-gray-100 bg-white">
-          <div className="flex relative">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="다음 이야기를 적어주세요..."
-              className="w-full pl-5 pr-14 py-4 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
-              disabled={isTyping}
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || isTyping}
-              className="absolute right-2 top-2 bottom-2 aspect-square bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-full flex items-center justify-center transition-colors"
-            >
-              <svg className="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
-}
+## 6. 해결해야 할 핵심 과제 (Risk & Mitigation)
+* **캐릭터 일관성 (Character Consistency):**
+  * *문제:* 장면이 바뀔 때마다 돼지의 생김새가 변하면 몰입이 깨짐.
+  * *해결안:* 이미지 생성 시 동일한 Seed 값을 유지하거나, 캐릭터 레퍼런스를 프롬프트에 지속적으로 주입(IP-Adapter 등 활용 검토).
+* **부분 수정(Inpainting)의 자연스러움:**
+  * *문제:* "넝마를 입었어요"를 처리할 때 화면 전체가 다시 그려지는 현상.
+  * *해결안:* 사용자의 입력을 바탕으로 Gemini가 이미지 내 수정할 '마스크 영역'을 텍스트로 추론하게 하고, 이를 이미지 모델의 Inpainting 기능과 매핑하는 로직 정교화.
